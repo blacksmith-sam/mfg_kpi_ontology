@@ -1,0 +1,167 @@
+# ---------------------------------------------------------------------------
+# KPIs. `formula` may reference variables AND other KPI ids (evaluated in
+# dependency order). Allowed functions: min max abs round sqrt log exp clamp.
+#
+#   direction: up   -> higher is better (target >= threshold)
+#   direction: down -> lower is better  (target <= threshold)
+#   target    = green line;  threshold = minimum acceptable (red beyond it)
+#   kind      = leading | lagging      mode = automated | manual | hybrid
+#   role      = capacity  (marks stage capacity KPIs for bottleneck analysis)
+# ---------------------------------------------------------------------------
+
+kpis:
+  # =================== SUPPLY CHAIN ===================
+  - {id: sc_otif, parent: obj_supply_chain, name: Supplier OTIF, domain: supply_chain, stage: s0_receive_kit,
+     formula: sc_orders_otif / sc_orders_total, unit: ratio, direction: up, target: 0.95, threshold: 0.85, kind: leading, mode: automated, frequency: weekly}
+  - {id: sc_supplier_ppm, parent: obj_supply_chain, name: Incoming defect PPM, domain: supply_chain, stage: s0_receive_kit,
+     formula: sc_defective_parts / sc_received_parts * 1e6, unit: ppm, direction: down, target: 500, threshold: 2000, kind: leading, frequency: weekly}
+  - {id: sc_inventory_accuracy, parent: obj_supply_chain, name: Inventory record accuracy, domain: supply_chain, stage: s0_receive_kit,
+     formula: inv_locations_accurate / inv_locations_counted, unit: ratio, direction: up, target: 0.99, threshold: 0.95, kind: leading, mode: automated}
+  - {id: sc_kit_completeness, parent: obj_supply_chain, name: Kit completeness, domain: supply_chain, stage: s0_receive_kit,
+     formula: kits_complete / kits_issued, unit: ratio, direction: up, target: 0.99, threshold: 0.95, kind: leading, mode: automated}
+  - {id: sc_dock_to_stock, parent: obj_supply_chain, name: Dock-to-stock time, domain: supply_chain, stage: s0_receive_kit,
+     formula: dock_to_stock_hrs, unit: h, direction: down, target: 4, threshold: 12, kind: leading, mode: automated}
+  - {id: sc_shortage_stops, parent: obj_supply_chain, name: Line stops for material shortage, domain: supply_chain, stage: s0_receive_kit,
+     formula: sc_shortage_stop_events, unit: events, direction: down, target: 0, threshold: 5, kind: lagging}
+
+  # =================== OPERATING CAPABILITY: BUILD ===================
+  - {id: asm_oee, parent: obj_op_build, name: Automated assembly OEE, domain: assembly_auto, stage: s1_build, weight: 2,
+     formula: asm_availability * asm_performance * asm_quality, unit: ratio, direction: up, target: 0.75, threshold: 0.60, kind: lagging, mode: automated}
+  - {id: asm_availability, parent: asm_oee, name: Assembly availability, domain: assembly_auto, stage: s1_build,
+     formula: (asm_planned_min - asm_downtime_min) / asm_planned_min, unit: ratio, direction: up, target: 0.90, threshold: 0.80}
+  - {id: asm_performance, parent: asm_oee, name: Assembly performance, domain: assembly_auto, stage: s1_build,
+     formula: asm_ideal_cycle_s * asm_units_started / ((asm_planned_min - asm_downtime_min) * 60), unit: ratio, direction: up, target: 0.95, threshold: 0.85}
+  - {id: asm_quality, parent: asm_oee, name: Assembly first-pass yield, domain: assembly_auto, stage: s1_build,
+     formula: asm_units_good_fp / asm_units_started, unit: ratio, direction: up, target: 0.98, threshold: 0.94}
+  - {id: asm_capacity_uph, parent: obj_op_build, name: Build stage capacity, domain: assembly_auto, stage: s1_build, role: capacity,
+     formula: 3600 / asm_actual_cycle_s * asm_availability, unit: units/h, direction: up, target: 65, threshold: 50, kind: leading}
+
+  # =================== OPERATING CAPABILITY: TEST ===================
+  - {id: tst_fpy, parent: obj_op_test, name: Test first-pass yield, domain: test, stage: s2_test, weight: 2,
+     formula: tst_units_pass_first / tst_units_tested, unit: ratio, direction: up, target: 0.97, threshold: 0.93, kind: lagging, mode: automated}
+  - {id: tst_false_fail_rate, parent: obj_op_test, name: Test false-fail rate, domain: test, stage: s2_test,
+     formula: tst_false_fails / tst_units_tested, unit: ratio, direction: down, target: 0.005, threshold: 0.02}
+  - {id: tst_req_coverage, parent: obj_op_test, name: Requirement test coverage, domain: test, stage: s2_test,
+     formula: tst_req_covered / tst_req_total, unit: ratio, direction: up, target: 0.98, threshold: 0.90, kind: leading}
+  - {id: tst_gauge_rr, parent: obj_op_test, name: Test system Gauge R&R, domain: test, stage: s2_test,
+     formula: tst_gauge_rr_pct, unit: '%', direction: down, target: 10, threshold: 30, kind: leading}
+  - {id: tst_capacity_uph, parent: obj_op_test, name: Test stage capacity, domain: test, stage: s2_test, role: capacity,
+     formula: 3600 / tst_cycle_s * tst_station_avail * tst_stations, unit: units/h, direction: up, target: 65, threshold: 50, kind: leading}
+
+  # =================== OPERATING CAPABILITY: PACKAGE ===================
+  - {id: pkg_oee, parent: obj_op_package, name: Packaging OEE, domain: packaging, stage: s3_package, weight: 2,
+     formula: pkg_availability * pkg_performance * pkg_quality, unit: ratio, direction: up, target: 0.80, threshold: 0.65, mode: automated}
+  - {id: pkg_availability, parent: pkg_oee, name: Packaging availability, domain: packaging, stage: s3_package,
+     formula: (pkg_planned_min - pkg_downtime_min) / pkg_planned_min, unit: ratio, direction: up, target: 0.92, threshold: 0.82}
+  - {id: pkg_performance, parent: pkg_oee, name: Packaging performance, domain: packaging, stage: s3_package,
+     formula: pkg_ideal_cycle_s * pkg_units / ((pkg_planned_min - pkg_downtime_min) * 60), unit: ratio, direction: up, target: 0.95, threshold: 0.85}
+  - {id: pkg_quality, parent: pkg_oee, name: Packaging first-pass yield, domain: packaging, stage: s3_package,
+     formula: pkg_units_good / pkg_units, unit: ratio, direction: up, target: 0.995, threshold: 0.98}
+  - {id: pkg_capacity_uph, parent: obj_op_package, name: Package stage capacity, domain: packaging, stage: s3_package, role: capacity,
+     formula: 3600 / pkg_actual_cycle_s * pkg_availability, unit: units/h, direction: up, target: 65, threshold: 50, kind: leading}
+
+  # =================== LINE-LEVEL CAPABILITY & PREDICTION ===================
+  - {id: line_rty, parent: obj_op_line, name: Rolled throughput yield, domain: flow_control, weight: 2,
+     formula: asm_quality * tst_fpy * pkg_quality, unit: ratio, direction: up, target: 0.93, threshold: 0.85, kind: lagging}
+  - {id: line_capacity_uph, parent: obj_op_line, name: Line capacity (bottleneck), domain: flow_control, weight: 2,
+     formula: "min(asm_capacity_uph, tst_capacity_uph, pkg_capacity_uph)", unit: units/h, direction: up, target: 65, threshold: 50, kind: leading}
+  - {id: pred_pilot_output, parent: obj_op_line, name: Predicted good units over pilot, domain: flow_control,
+     formula: line_capacity_uph * line_hrs_per_week * pilot_weeks * line_rty, unit: units, direction: up, target: 45000, threshold: 38000, kind: leading,
+     description: Forward prediction of good output if current capability holds for the whole pilot}
+  - {id: pred_demand_coverage, parent: obj_op_line, name: Predicted pilot demand coverage, domain: business, weight: 2,
+     formula: pred_pilot_output / pilot_demand_units, unit: ratio, direction: up, target: 1.0, threshold: 0.85, kind: leading}
+
+  # =================== GATED FLOW INTEGRITY ===================
+  - {id: gate_compliance, parent: obj_gated_flow, name: Gate compliance (no bypass), domain: flow_control, weight: 2,
+     formula: 1 - gate_bypasses / gate_units_entered, unit: ratio, direction: up, target: 0.999, threshold: 0.99, mode: automated}
+  - {id: gate_containment, parent: obj_gated_flow, name: Gate defect containment, domain: flow_control, weight: 2,
+     formula: gate_defects_caught / (gate_defects_caught + gate_defects_escaped), unit: ratio, direction: up, target: 0.98, threshold: 0.93}
+  - {id: tst_escape_ppm, parent: obj_gated_flow, name: Outgoing escape PPM, domain: test,
+     formula: tst_escapes / trc_units_shipped * 1e6, unit: ppm, direction: down, target: 200, threshold: 1000, kind: lagging}
+  - {id: flow_lead_time_hrs, parent: obj_gated_flow, name: "Flow lead time (Little's law)", domain: flow_control,
+     formula: wip_units / line_capacity_uph, unit: h, direction: down, target: 4, threshold: 10}
+  - {id: gate_queue_time, parent: obj_gated_flow, name: Average gate queue time, domain: flow_control,
+     formula: gate_queue_hrs_avg, unit: h, direction: down, target: 1, threshold: 4}
+
+  # =================== TRACEABILITY ===================
+  - {id: trc_genealogy_coverage, parent: obj_traceability, name: Full genealogy coverage, domain: traceability, stage: s4_trace_release, weight: 2,
+     formula: trc_units_full_genealogy / trc_units_shipped, unit: ratio, direction: up, target: 0.999, threshold: 0.98, mode: automated}
+  - {id: trc_data_completeness, parent: obj_traceability, name: Trace data completeness, domain: traceability, stage: s4_trace_release,
+     formula: trc_fields_captured / trc_fields_required, unit: ratio, direction: up, target: 0.998, threshold: 0.99, mode: automated}
+  - {id: trc_retrieval_time, parent: obj_traceability, name: Genealogy retrieval time, domain: traceability,
+     formula: trc_retrieval_min, unit: min, direction: down, target: 5, threshold: 30}
+  - {id: trc_integrity, parent: obj_traceability, name: Record integrity violations, domain: traceability, weight: 2,
+     formula: trc_integrity_violations, unit: events, direction: down, target: 0, threshold: 1}
+  - {id: trc_serial_dupes, parent: obj_traceability, name: Duplicate serial numbers, domain: traceability,
+     formula: trc_serial_dupe_events, unit: events, direction: down, target: 0, threshold: 3}
+  - {id: pkg_label_accuracy, parent: obj_traceability, name: Label / serialization accuracy, domain: packaging, stage: s3_package,
+     formula: 1 - pkg_label_errors / pkg_label_scans, unit: ratio, direction: up, target: 0.9995, threshold: 0.998, mode: automated}
+
+  # =================== AUTOMATION / HUMAN DISPLACEMENT ===================
+  - {id: auto_labor_displacement, parent: obj_automation, name: Labor-hours displaced by automation, domain: automation, weight: 3,
+     formula: (automated_labor_hrs_sc + automated_labor_hrs_asm) / (baseline_labor_hrs_sc + baseline_labor_hrs_asm), unit: ratio, direction: up, target: 0.70, threshold: 0.40, kind: lagging}
+  - {id: auto_sc_displacement, parent: auto_labor_displacement, name: Supply-chain labor displaced, domain: supply_chain,
+     formula: automated_labor_hrs_sc / baseline_labor_hrs_sc, unit: ratio, direction: up, target: 0.70, threshold: 0.40}
+  - {id: auto_asm_displacement, parent: auto_labor_displacement, name: Assembly labor displaced, domain: assembly_auto,
+     formula: automated_labor_hrs_asm / baseline_labor_hrs_asm, unit: ratio, direction: up, target: 0.70, threshold: 0.40}
+  - {id: auto_sc_task_coverage, parent: obj_automation, name: Supply-chain task automation coverage, domain: supply_chain,
+     formula: sc_tasks_automated / sc_tasks_total, unit: ratio, direction: up, target: 0.75, threshold: 0.40, kind: leading}
+  - {id: auto_fte_equivalent, parent: obj_automation, name: FTE equivalent displaced, domain: workforce,
+     formula: (automated_labor_hrs_sc + automated_labor_hrs_asm) / hrs_per_fte_period, unit: FTE, direction: up, target: 36, threshold: 20}
+  - {id: auto_intervention_rate, parent: obj_automation, name: Human interventions per 1000 cycles, domain: automation, weight: 2,
+     formula: human_interventions / auto_cycles * 1000, unit: per 1000 cycles, direction: down, target: 1, threshold: 5, kind: leading,
+     description: Tells you whether the automation actually runs without people}
+  - {id: auto_mtbf, parent: obj_automation, name: Robot/cell MTBF, domain: automation,
+     formula: robot_run_hrs / robot_failures, unit: h, direction: up, target: 100, threshold: 40}
+  - {id: auto_mttr, parent: obj_automation, name: Robot/cell MTTR, domain: automation,
+     formula: robot_repair_hrs / robot_failures, unit: h, direction: down, target: 1, threshold: 4}
+
+  # =================== HUMAN PRECISION ASSEMBLY ===================
+  - {id: man_fpy, parent: obj_human_precision, name: Manual assembly first-pass yield, domain: assembly_manual, stage: s1_build, weight: 2,
+     formula: man_units_good_fp / man_units_built, unit: ratio, direction: up, target: 0.98, threshold: 0.95, mode: manual}
+  - {id: man_fastening_rft, parent: obj_human_precision, name: Fastening right-first-time, domain: assembly_manual, stage: s1_build,
+     formula: man_fastening_ok / man_fastening_ops, unit: ratio, direction: up, target: 0.999, threshold: 0.995, mode: manual}
+  - {id: man_position_cpk, parent: obj_human_precision, name: Critical-feature placement Cpk, domain: assembly_manual, stage: s1_build, weight: 2,
+     formula: man_position_cpk_measured, unit: Cpk, direction: up, target: 1.67, threshold: 1.33, mode: manual}
+  - {id: man_std_work_adherence, parent: obj_human_precision, name: Standard-work adherence, domain: assembly_manual,
+     formula: man_std_work_compliant / man_std_work_audits, unit: ratio, direction: up, target: 0.95, threshold: 0.85, kind: leading, mode: manual}
+  - {id: man_certification, parent: obj_human_precision, name: Operator certification coverage, domain: workforce,
+     formula: man_operators_certified / man_operators, unit: ratio, direction: up, target: 1.0, threshold: 0.80, kind: leading, mode: manual}
+  - {id: man_errorproof_coverage, parent: obj_human_precision, name: Critical ops error-proofed (poka-yoke), domain: assembly_manual,
+     formula: man_critical_ops_errorproofed / man_critical_ops, unit: ratio, direction: up, target: 0.90, threshold: 0.60, kind: leading}
+  - {id: man_takt_adherence, parent: obj_human_precision, name: Takt adherence, domain: assembly_manual, stage: s1_build,
+     formula: man_takt_s / man_actual_cycle_s, unit: ratio, direction: up, target: 1.0, threshold: 0.90, mode: manual}
+  - {id: man_ergo_risk, parent: obj_human_precision, name: Ergonomic risk (avg RULA), domain: workforce,
+     formula: man_ergo_rula_avg, unit: RULA, direction: down, target: 3, threshold: 5, kind: leading}
+  - {id: man_near_miss_rate, parent: obj_human_precision, name: Near-miss rate per 1000 h, domain: workforce,
+     formula: man_near_misses / man_hours_worked * 1000, unit: per 1000 h, direction: down, target: 2, threshold: 8}
+  - {id: man_time_to_proficiency, parent: obj_human_precision, name: Time to operator proficiency, domain: workforce,
+     formula: man_time_to_proficiency_days, unit: days, direction: down, target: 10, threshold: 30, kind: leading}
+
+  # =================== BUSINESS VALUE ===================
+  - {id: biz_capex_variance, parent: obj_business, name: Capex variance vs budget, domain: business,
+     formula: (capex_actual - capex_budget) / capex_budget, unit: ratio, direction: down, target: 0, threshold: 0.10}
+  - {id: biz_unit_cost, parent: obj_business, name: Cost per shipped unit, domain: business, weight: 2,
+     formula: (period_material_cost + period_overhead_cost + biz_manual_labor_cost) / trc_units_shipped, unit: USD, direction: down, target: 72, threshold: 90}
+  - {id: biz_manual_labor_cost, parent: biz_unit_cost, name: Remaining manual labor cost / period, domain: business,
+     formula: (baseline_labor_hrs_sc + baseline_labor_hrs_asm - automated_labor_hrs_sc - automated_labor_hrs_asm) * loaded_labor_rate, unit: USD}
+  - {id: biz_labor_savings, parent: obj_business, name: Labor savings / period, domain: business,
+     formula: (automated_labor_hrs_sc + automated_labor_hrs_asm) * loaded_labor_rate, unit: USD, direction: up, target: 65000, threshold: 40000}
+  - {id: biz_payback_months, parent: obj_business, name: Automation payback, domain: business, weight: 2,
+     formula: capex_actual / (biz_labor_savings * weeks_per_month), unit: months, direction: down, target: 24, threshold: 36, kind: leading}
+  - {id: biz_milestones_on_time, parent: obj_business, name: Program milestones on time, domain: business,
+     formula: milestones_on_time / milestones_due, unit: ratio, direction: up, target: 0.90, threshold: 0.75}
+
+  # =================== TECHNICAL DELIVERY ===================
+  - {id: tech_req_verified, parent: obj_tech_delivery, name: Requirements verified, domain: tech_delivery, weight: 2,
+     formula: req_verified / req_total, unit: ratio, direction: up, target: 0.95, threshold: 0.80, kind: leading}
+  - {id: tech_open_critical_defects, parent: obj_tech_delivery, name: Open critical engineering defects, domain: tech_delivery, weight: 2,
+     formula: eng_open_critical_defects, unit: defects, direction: down, target: 0, threshold: 5}
+  - {id: tech_it_ot_integration, parent: obj_tech_delivery, name: IT/OT interfaces live (ERP-MES-WMS-PLC), domain: tech_delivery,
+     formula: it_ot_interfaces_live / it_ot_interfaces_total, unit: ratio, direction: up, target: 1.0, threshold: 0.80, kind: leading}
+  - {id: tech_data_uptime, parent: obj_tech_delivery, name: Data pipeline uptime, domain: tech_delivery,
+     formula: data_pipeline_uptime, unit: ratio, direction: up, target: 0.995, threshold: 0.98}
+  - {id: tech_iqoq_pass_rate, parent: obj_tech_delivery, name: IQ/OQ protocols passed, domain: tech_delivery, weight: 2,
+     formula: iqoq_protocols_passed / iqoq_protocols_total, unit: ratio, direction: up, target: 1.0, threshold: 0.85}
+  - {id: tech_cyber_high_open, parent: obj_tech_delivery, name: Open high-severity OT cyber findings, domain: tech_delivery,
+     formula: cyber_high_findings_open, unit: findings, direction: down, target: 0, threshold: 3}

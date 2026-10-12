@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------------------
+# STRUCTURE: domains, sequential process stages, and the objective tree.
+# Any later file (including extensions/) can override a node by repeating its
+# id; fields are shallow-merged, so you can change just `target` or `weight`.
+# ---------------------------------------------------------------------------
+
+domains:
+  - {id: supply_chain,     name: Supply Chain & Logistics,     type: physical_flow}
+  - {id: assembly_auto,    name: Automated Assembly,           type: physical_process}
+  - {id: assembly_manual,  name: Manual Precision Assembly,    type: human_process}
+  - {id: test,             name: Test & Inspection,            type: physical_process}
+  - {id: packaging,        name: Packaging & Labeling,         type: physical_process}
+  - {id: traceability,     name: Traceability & Genealogy,     type: information}
+  - {id: flow_control,     name: Gated Flow Control,           type: control}
+  - {id: automation,       name: Automation & Robotics,        type: physical_process}
+  - {id: workforce,        name: "Workforce, Safety & Ergonomics", type: human_process}
+  - {id: business,         name: Business Operations & Finance, type: business}
+  - {id: tech_delivery,    name: Technical Delivery (Eng/IT/OT), type: technical}
+
+# Unit-level sequential flow. Every unit must exit each stage through its gate.
+stages:
+  - {id: s0_receive_kit,   name: Receive & Kit,     order: 0, domain: supply_chain}
+  - {id: s1_build,         name: Build / Assemble,  order: 1, domain: assembly_auto}
+  - {id: s2_test,          name: Test,              order: 2, domain: test}
+  - {id: s3_package,       name: Package,           order: 3, domain: packaging}
+  - {id: s4_trace_release, name: Trace & Release,   order: 4, domain: traceability}
+
+# Objective tree. `parent` builds the hierarchy; `weight` drives the roll-up.
+objectives:
+  - id: root_pilot_line
+    name: Fully functional internal pilot line (Build - Test - Package - Trace)
+    description: Pilot proves the line can run at target rate, quality and traceability with minimal human labor.
+
+  - {id: obj_operational,  parent: root_pilot_line, weight: 3, name: "Operating capability (rate, yield, OEE)"}
+  - {id: obj_gated_flow,   parent: root_pilot_line, weight: 2, name: Gated flow integrity}
+  - {id: obj_traceability, parent: root_pilot_line, weight: 2, name: End-to-end traceability}
+  - {id: obj_automation,   parent: root_pilot_line, weight: 3, name: Human-labor displacement by automation}
+  - {id: obj_human_precision, parent: root_pilot_line, weight: 2, name: Human precision assembly excellence}
+  - {id: obj_supply_chain, parent: root_pilot_line, weight: 2, name: Supply chain readiness}
+  - {id: obj_business,     parent: root_pilot_line, weight: 2, name: Business value}
+  - {id: obj_tech_delivery, parent: root_pilot_line, weight: 2, name: Technical delivery}
+
+  # Sub-objectives to keep the operating tree readable
+  - {id: obj_op_build,    parent: obj_operational, weight: 1, name: Build performance}
+  - {id: obj_op_test,     parent: obj_operational, weight: 1, name: Test performance}
+  - {id: obj_op_package,  parent: obj_operational, weight: 1, name: Package performance}
+  - {id: obj_op_line,     parent: obj_operational, weight: 2, name: Line-level capability & prediction}

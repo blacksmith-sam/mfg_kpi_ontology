@@ -1,0 +1,120 @@
+# ---------------------------------------------------------------------------
+# MAPPING: ACME CM weekly report  ->  KPI model variables
+# One mapping file per report layout. When the CM changes the layout, change this
+# file (or add `fallback:` rules); the code stays the same.
+#
+# adapter: generic                 -> mapping rules only
+#          acme_cm_weekly          -> registered subclass with custom_fields()
+#          mypkg.mymodule:MyClass  -> your own class
+# ---------------------------------------------------------------------------
+adapter: acme_cm_weekly
+report: ACME Contract Manufacturing - Weekly Operations Report
+
+period: {label: Reporting week}          # falls back to "2026-W41" in the file name
+
+fields:
+  # ---- internal constants needed by transforms (not in the CM report) ----
+  baseline_labor_hrs_sc:  {value: 480}
+  baseline_labor_hrs_asm: {value: 1600}
+
+  # ---- Summary sheet (label -> first number to the right = "Actual") ----
+  trc_units_shipped:       {label: Units shipped, sheet: Summary}
+  sc_orders_total:         {label: PO lines due, sheet: Summary}
+  sc_orders_otif:          {label: PO lines delivered OTIF, sheet: Summary}
+  dock_to_stock_hrs:       {label: Dock-to-stock, sheet: Summary}
+  sc_shortage_stop_events: {label: Line stops - material shortage, sheet: Summary}
+  wip_units:               {label: WIP at week end, sheet: Summary}
+  gate_queue_hrs_avg:      {label: Avg gate queue, sheet: Summary}
+  kits_issued:             {label: Kits issued, sheet: Summary}
+  kits_complete:           {label: Kits complete, sheet: Summary}
+  inv_locations_counted:   {label: Cycle-count locations, sheet: Summary}
+  inv_locations_accurate:  {label: Locations accurate, sheet: Summary}
+  sc_received_parts:       {label: Parts received, sheet: Summary}
+  man_hours_worked:        {label: Operator hours - manual stations, sheet: Summary}
+  period_material_cost:    {label: Material cost, sheet: Summary}
+  period_overhead_cost:    {label: CM fee & overhead, sheet: Summary}
+  # CM reports hours people worked; automation did the rest of the baseline
+  automated_labor_hrs_sc:  {label: Direct labor hours - supply chain, sheet: Summary, transform: "max(0, baseline_labor_hrs_sc - x)"}
+  automated_labor_hrs_asm: {label: Direct labor hours - assembly, sheet: Summary, transform: "max(0, baseline_labor_hrs_asm - x)"}
+  line_hrs_per_week:       {label: Planned line hours, sheet: Summary, required: false}
+
+  # ---- Production matrix (row label x column header) ----
+  asm_units_started:   {table: Production, row: Units started, col: Build (auto)}
+  asm_units_good_fp:   {table: Production, row: First pass good, col: Build (auto)}
+  asm_actual_cycle_s:  {table: Production, row: Avg cycle time, col: Build (auto)}
+  asm_planned_min:     {table: Production, row: Planned minutes, col: Build (auto)}
+  man_units_built:     {table: Production, row: Units started, col: Manual stations}
+  man_units_good_fp:   {table: Production, row: First pass good, col: Manual stations}
+  man_actual_cycle_s:  {table: Production, row: Avg cycle time, col: Manual stations}
+  tst_units_tested:    {table: Production, row: Units started, col: Test}
+  tst_units_pass_first: {table: Production, row: First pass good, col: Test}
+  tst_cycle_s:         {table: Production, row: Avg cycle time, col: Test}
+  tst_station_avail:   {table: Production, row: Station availability, col: Test}
+  tst_stations:        {table: Production, row: Stations in use, col: Test}
+  tst_false_fails:     {table: Production, row: No defect found, col: Test}
+  pkg_units:           {table: Production, row: Units started, col: Pack}
+  pkg_units_good:      {table: Production, row: First pass good, col: Pack}
+  pkg_actual_cycle_s:  {table: Production, row: Avg cycle time, col: Pack}
+  pkg_planned_min:     {table: Production, row: Planned minutes, col: Pack}
+
+  # ---- Downtime log (aggregate a column, filtered) ----
+  asm_downtime_min: {table: Downtime, column: Minutes, agg: sum, where: {Stage: Build}}
+  pkg_downtime_min: {table: Downtime, column: Minutes, agg: sum, where: {Stage: Pack}}
+  # human_interventions, robot_failures, robot_repair_hrs, auto_cycles -> AcmeCMWeeklyAdapter.custom_fields()
+
+  # ---- Quality sheet ----
+  sc_defective_parts:     {label: Incoming rejects, sheet: Quality}
+  tst_escapes:            {label: Test escapes, sheet: Quality}
+  man_position_cpk_measured: {label: Cpk critical position, sheet: Quality}
+  tst_gauge_rr_pct:       {label: Gauge R&R, sheet: Quality, percent: keep}
+  man_fastening_ops:      {label: Fastening operations, sheet: Quality}
+  man_fastening_ok:       {label: Fastening OK first time, sheet: Quality}
+  pkg_label_scans:        {label: Label scans, sheet: Quality}
+  pkg_label_errors:       {label: Label errors, sheet: Quality}
+  gate_bypasses:          {label: Gate bypasses, sheet: Quality}
+  gate_defects_caught:    {label: Defects caught at gates, sheet: Quality}
+  gate_defects_escaped:   {label: Defects escaped gates, sheet: Quality}
+  man_std_work_audits:    {label: Standard work audits, sheet: Quality, match: exact}
+  man_std_work_compliant: {label: Standard work audits compliant, sheet: Quality}
+  esd_wrist_checks:       {label: ESD checks, sheet: Quality, match: exact}
+  esd_wrist_check_fails:  {label: ESD check fails, sheet: Quality}
+
+  # ---- Traceability sheet ----
+  trc_units_full_genealogy: {label: Units with full genealogy, sheet: Traceability}
+  trc_fields_required:      {label: Trace fields required, sheet: Traceability}
+  trc_fields_captured:      {label: Trace fields captured, sheet: Traceability}
+  trc_retrieval_min:        {label: Trace drill retrieval, sheet: Traceability}
+  trc_integrity_violations: {label: Record integrity violations, sheet: Traceability}
+  trc_serial_dupe_events:   {label: Duplicate serials, sheet: Traceability}
+
+  # gate_units_entered is not reported; use units started at build
+  gate_units_entered: {table: Production, row: Units started, col: Build (auto)}
+
+# Targets the CM states in its own report ("CM Target" column) -> propose constraints
+# key = a KPI id (or variable id); op = how the actual must compare to the target
+commitments:
+  sc_otif:          {label: OTIF %, sheet: Summary, offset: [0, 2], op: ">="}
+  sc_dock_to_stock: {label: Dock-to-stock, sheet: Summary, offset: [0, 2], op: "<="}
+  sc_shortage_stops: {label: Line stops - material shortage, sheet: Summary, offset: [0, 2], op: "<=", hard: false}
+  tst_escape_ppm:   {label: Escape PPM, sheet: Quality, offset: [0, 2], op: "<="}
+  tst_fpy:          {label: First pass yield - Test, sheet: Quality, offset: [0, 2], op: ">="}
+  man_position_cpk: {label: Cpk critical position, sheet: Quality, offset: [0, 2], op: ">="}
+  tst_gauge_rr:     {label: Gauge R&R, sheet: Quality, offset: [0, 2], op: "<=", percent: keep}
+  gate_bypasses:    {label: Gate bypasses, sheet: Quality, offset: [0, 2], op: "<="}
+
+# Numbers the CM reports that the model does not use yet -> KPI candidates in `propose`
+extra_fields:
+  cm_rework_hours:     {label: Rework hours, sheet: Summary, unit: h, name: Rework hours, direction: down,
+                        target_from: {label: Rework hours, sheet: Summary, offset: [0, 2]}}
+  cm_customer_returns: {label: Customer returns, sheet: Summary, unit: units, name: Customer returns (RMA), direction: down,
+                        target_from: {label: Customer returns, sheet: Summary, offset: [0, 2]}}
+  cm_scrap_cost:       {label: Scrap cost, sheet: Summary, unit: USD, name: Scrap cost, direction: down,
+                        target_from: {label: Scrap cost, sheet: Summary, offset: [0, 2]}}
+
+# Sanity checks on the extracted numbers (failures are recorded in the run file)
+checks:
+  - asm_units_good_fp <= asm_units_started
+  - tst_units_pass_first <= tst_units_tested
+  - trc_units_full_genealogy <= trc_units_shipped
+  - man_fastening_ok <= man_fastening_ops
+  - asm_downtime_min <= asm_planned_min

@@ -1,0 +1,37 @@
+# ---------------------------------------------------------------------------
+# CONSTRAINTS: boolean rules over variables and KPIs, evaluated every run.
+#   kind: contract       -> committed by the contract manufacturer (CM) / quality agreement
+#         physical       -> what the line can physically do (capacity, takt)
+#         data_integrity -> the report has to be internally consistent; catches extraction errors
+#         policy         -> your own rules (safety, compliance)
+#   hard: true -> a violation is a blocker; gates can require it via {constraint: id}
+#   objective: the objective this constraint protects (links it into the tree)
+# `propose` writes more of these from the targets the CM states in its weekly report.
+# ---------------------------------------------------------------------------
+
+constraints:
+  # ---- contract / quality agreement with the CM ----
+  - {id: c_cm_test_fpy, name: CM committed test FPY >= 95%, kind: contract, hard: true,
+     expr: tst_fpy >= 0.95, objective: obj_op_test, source: CM quality agreement}
+  - {id: c_cm_escape_ppm, name: Outgoing escapes <= 1000 ppm, kind: contract, hard: true,
+     expr: tst_escape_ppm <= 1000, objective: obj_gated_flow, source: CM quality agreement}
+  - {id: c_cm_otif, name: CM delivery OTIF >= 90%, kind: contract, hard: false,
+     expr: sc_otif >= 0.90, objective: obj_supply_chain, source: CM supply agreement}
+
+  # ---- physical feasibility ----
+  - {id: c_capacity_covers_demand, name: Line capacity covers pilot demand, kind: physical, hard: true,
+     expr: line_capacity_uph * line_hrs_per_week * pilot_weeks * line_rty >= pilot_demand_units, objective: obj_op_line}
+  - {id: c_manual_takt_feasible, name: Manual cycle within 110% of takt, kind: physical, hard: false,
+     expr: man_actual_cycle_s <= man_takt_s * 1.10, objective: obj_human_precision}
+
+  # ---- data integrity of the weekly report ----
+  - {id: c_di_build_good_le_started, name: Good units <= units started (build), kind: data_integrity, hard: true,
+     expr: asm_units_good_fp <= asm_units_started}
+  - {id: c_di_test_pass_le_tested, name: First-pass units <= units tested, kind: data_integrity, hard: true,
+     expr: tst_units_pass_first <= tst_units_tested}
+  - {id: c_di_genealogy_le_shipped, name: Units with genealogy <= units shipped, kind: data_integrity, hard: true,
+     expr: trc_units_full_genealogy <= trc_units_shipped}
+  - {id: c_di_downtime_le_planned, name: Downtime <= planned time, kind: data_integrity, hard: true,
+     expr: asm_downtime_min <= asm_planned_min and pkg_downtime_min <= pkg_planned_min}
+  - {id: c_di_automated_le_baseline, name: Automated labor-hours <= baseline labor-hours, kind: data_integrity, hard: true,
+     expr: automated_labor_hrs_sc <= baseline_labor_hrs_sc and automated_labor_hrs_asm <= baseline_labor_hrs_asm}

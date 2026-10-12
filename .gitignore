@@ -1,0 +1,13 @@
+# Python environment and caches (rebuild with: uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt)
+.venv/
+__pycache__/
+*.pyc
+
+# Generated outputs (recreate with: python -m kpi_ontology report)
+out/
+
+# Contract-manufacturer reports and extracted runs: keep real supplier data out of git.
+# The synthetic samples can be regenerated with: python scripts/make_sample_cm_reports.py
+data/inbox/
+data/runs/
+proposals/

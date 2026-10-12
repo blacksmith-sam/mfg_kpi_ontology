@@ -1,0 +1,42 @@
+# ---------------------------------------------------------------------------
+# EXAMPLE CUSTOM DOMAIN EXTENSION — copy this file to add your own domain.
+# Everything in extensions/ is loaded after model/, so you can:
+#   * add new domains, variables (with custom types/attributes), KPIs
+#   * hang KPIs anywhere in the tree via `parent`
+#   * override any existing node by repeating its id (shallow merge)
+#   * add criteria to existing gates with gate_criteria_additions
+# Delete or rename to .yaml.off to disable.
+# ---------------------------------------------------------------------------
+
+domains:
+  - id: esd_control
+    name: ESD & Cleanliness Control
+    type: environmental_control
+    attributes: {standard: ANSI/ESD S20.20, owner_role: Quality Engineer}
+
+variables:
+  - {id: esd_wrist_checks,       value: 1440, type: int, unit: checks, domain: esd_control, stage: s1_build, source: ESD_monitor,
+     ask: CM, question: "How many wrist-strap / heel-strap checks were logged at the manual stations this week?"}
+  - {id: esd_wrist_check_fails,  value: 3,    type: int, unit: checks, domain: esd_control, stage: s1_build, source: ESD_monitor,
+     dist: {type: normal, sd: 2, min: 0}, ask: CM, question: "How many of those ESD checks failed?"}
+  - {id: esd_surface_ohms_max,   value: 8.5e+8, type: resistance, unit: ohm, domain: esd_control, stage: s1_build, source: ESD_audit, ask: quality,
+     question: "What was the highest work-surface resistance (ohm) measured in this week's ESD audit?",
+     attributes: {limit_ohm: 1.0e+9, method: ANSI/ESD STM4.1}}
+
+objectives:
+  - {id: obj_esd, parent: obj_human_precision, weight: 1, name: ESD control at manual stations}
+
+kpis:
+  - {id: esd_wrist_pass_rate, parent: obj_esd, name: Wrist-strap check pass rate, domain: esd_control, stage: s1_build,
+     formula: 1 - esd_wrist_check_fails / esd_wrist_checks, unit: ratio, direction: up, target: 0.999, threshold: 0.995, mode: manual}
+  - {id: esd_surface_resistance, parent: obj_esd, name: Max work-surface resistance, domain: esd_control, stage: s1_build,
+     formula: esd_surface_ohms_max, unit: ohm, direction: down, target: 1.0e+9, threshold: 1.0e+10}
+
+  # Example override: tighten an existing target without touching the core file
+  - {id: sc_dock_to_stock, target: 3}
+
+gate_criteria_additions:
+  - gate: g1_build_complete
+    criteria:
+      - {kpi: esd_wrist_pass_rate, require: amber, hard: true}
+

@@ -1,0 +1,138 @@
+# ---------------------------------------------------------------------------
+# MANUAL-EXTRACTION QUESTIONS for every variable (merged into variables by id).
+#   ask:      who answers: CM (contract manufacturer) | quality | eng | finance | pmo | ehs | it_ot | plan
+#   question: the exact question to put in front of that person, for the reporting week
+#   clarify:  the definition to agree once with the CM, so week-to-week numbers can be compared
+# `python -m kpi_ontology questions` turns this into a questionnaire (Markdown + fillable CSV).
+# ---------------------------------------------------------------------------
+
+variables:
+  # ---------------- Supply chain ----------------
+  - {id: sc_orders_total, ask: CM, question: "How many purchase-order lines were due for delivery this week?",
+     clarify: "Count PO lines, not POs. Use the confirmed due date, not the requested date."}
+  - {id: sc_orders_otif, ask: CM, question: "How many of those PO lines arrived on time AND in full?",
+     clarify: "Agree the on-time window (e.g. -2/+0 days). Partial quantity = not in full."}
+  - {id: sc_received_parts, ask: CM, question: "How many component units were received this week?"}
+  - {id: sc_defective_parts, ask: quality, question: "How many received component units were rejected at incoming inspection or later traced to supplier defects?",
+     clarify: "Count units, not lots. Include line fallout that is confirmed to be the supplier's fault."}
+  - {id: inv_locations_counted, ask: CM, question: "How many inventory locations were cycle-counted this week?"}
+  - {id: inv_locations_accurate, ask: CM, question: "How many counted locations matched the system quantity (within tolerance)?",
+     clarify: "State the tolerance (exact match, or +/- x% for bulk parts)."}
+  - {id: kits_issued, ask: CM, question: "How many kits were issued to the line this week?"}
+  - {id: kits_complete, ask: CM, question: "How many kits were complete (all parts, right quantity) when they reached the line?"}
+  - {id: dock_to_stock_hrs, ask: CM, question: "What was the average time from receiving at the dock to stock being available in the system and location (hours)?"}
+  - {id: sc_shortage_stop_events, ask: CM, question: "How many times did the line stop or starve because a part was missing?"}
+  - {id: sc_tasks_total, ask: eng, question: "How many discrete tasks are in the supply-chain process map (receive, inspect, put away, pick, kit, deliver)?",
+     clarify: "Fix this task list once. Change it only through a revision of the process map."}
+  - {id: sc_tasks_automated, ask: eng, question: "How many of those tasks run with no person doing them in normal operation?"}
+
+  # ---------------- Automation / labor ----------------
+  - {id: baseline_labor_hrs_sc, ask: eng, question: "Before automation, how many labor-hours per week did the supply-chain workstream need at this volume?",
+     clarify: "Baseline from the pre-automation time study, scaled to this week's volume."}
+  - {id: automated_labor_hrs_sc, ask: eng, question: "How many of those supply-chain labor-hours did automation do this week (baseline minus the hours people actually worked)?"}
+  - {id: baseline_labor_hrs_asm, ask: eng, question: "Before automation, how many labor-hours per week did assembly need at this volume?"}
+  - {id: automated_labor_hrs_asm, ask: eng, question: "How many of those assembly labor-hours did automation do this week?"}
+  - {id: loaded_labor_rate, ask: finance, question: "What is the fully loaded labor cost per hour (wages, benefits, overhead share)?"}
+  - {id: hrs_per_fte_period, ask: finance, question: "How many paid hours make one FTE for one week?"}
+  - {id: human_interventions, ask: CM, question: "How many times did a person have to assist, reset, clear a jam or override an automated cell this week?",
+     clarify: "Every touch counts, including ones under 1 minute. Take it from the PLC/HMI alarm-acknowledge log if possible."}
+  - {id: auto_cycles, ask: CM, question: "How many cycles did the automated cells complete this week?"}
+  - {id: robot_failures, ask: CM, question: "How many failures stopped an automated cell and needed maintenance (not just an operator reset)?"}
+  - {id: robot_run_hrs, ask: CM, question: "How many hours did the automated cells actually run this week?"}
+  - {id: robot_repair_hrs, ask: CM, question: "How many hours in total did it take to restore cells after those failures?"}
+
+  # ---------------- Automated build ----------------
+  - {id: asm_planned_min, ask: CM, question: "How many minutes was the build stage scheduled to run this week (excluding planned breaks and planned maintenance)?"}
+  - {id: asm_downtime_min, ask: CM, question: "How many minutes of unplanned stoppage did the build stage have (breakdowns, changeovers, starvation, waiting)?",
+     clarify: "Agree whether starvation and changeover count as downtime. Keep the rule the same every week."}
+  - {id: asm_ideal_cycle_s, ask: eng, question: "What is the design (ideal) cycle time of the build stage in seconds per unit?"}
+  - {id: asm_actual_cycle_s, ask: CM, question: "What was the average actual cycle time per unit at the build stage this week (seconds)?"}
+  - {id: asm_units_started, ask: CM, question: "How many units started the build stage this week?"}
+  - {id: asm_units_good_fp, ask: CM, question: "How many of those units passed the build-stage checks the first time, without rework or repair?",
+     clarify: "First pass = no rework, no repair and no re-test at this stage."}
+
+  # ---------------- Manual precision assembly ----------------
+  - {id: man_units_built, ask: CM, question: "How many units went through the manual precision assembly stations?"}
+  - {id: man_units_good_fp, ask: CM, question: "How many of those units passed the manual-station checks the first time?"}
+  - {id: man_fastening_ops, ask: CM, question: "How many fastening operations were done with the smart tools this week?"}
+  - {id: man_fastening_ok, ask: CM, question: "How many fastening operations were in spec (torque and angle) on the first attempt?"}
+  - {id: man_position_cpk_measured, ask: quality, question: "What is this week's Cpk for the critical hand-placed feature, and how many samples is it based on?",
+     clarify: "Use at least 30 samples and say which feature and spec limits. If n < 30, report the value with a note."}
+  - {id: man_std_work_audits, ask: CM, question: "How many standard-work (layered process) audits were done at the manual stations?"}
+  - {id: man_std_work_compliant, ask: CM, question: "How many of those audits found the operator fully following the standard work?"}
+  - {id: man_operators, ask: CM, question: "How many operators worked the manual precision stations this week?"}
+  - {id: man_operators_certified, ask: CM, question: "How many of those operators are currently certified for every station they worked?"}
+  - {id: man_critical_ops, ask: quality, question: "How many critical operations (from the PFMEA) are done by hand?"}
+  - {id: man_critical_ops_errorproofed, ask: quality, question: "How many of those critical manual operations have working error-proofing (poka-yoke, interlock, vision check)?"}
+  - {id: man_takt_s, ask: eng, question: "What is the takt time for the manual stations in seconds (available time divided by required units)?"}
+  - {id: man_actual_cycle_s, ask: CM, question: "What was the average actual manual cycle time per unit this week (seconds)?"}
+  - {id: man_ergo_rula_avg, ask: ehs, question: "What is the average RULA score across the manual stations from the latest ergonomic assessment?"}
+  - {id: man_near_misses, ask: ehs, question: "How many near-miss safety events were reported at the manual stations this week?"}
+  - {id: man_hours_worked, ask: CM, question: "How many operator labor-hours were worked at the manual stations this week?"}
+  - {id: man_time_to_proficiency_days, ask: CM, question: "For operators qualified recently, how many days on average did it take from start of training to certification?"}
+
+  # ---------------- Test ----------------
+  - {id: tst_units_tested, ask: CM, question: "How many test runs were done this week?",
+     clarify: "Count every test execution, including retests."}
+  - {id: tst_units_pass_first, ask: CM, question: "How many units passed functional test on the first attempt?"}
+  - {id: tst_false_fails, ask: CM, question: "How many test failures turned out to be 'no defect found' on retest or analysis?"}
+  - {id: tst_req_total, ask: eng, question: "How many product requirements need verification by production test?"}
+  - {id: tst_req_covered, ask: eng, question: "How many of those requirements are covered by a validated production test step?"}
+  - {id: tst_cycle_s, ask: CM, question: "What is the average test cycle time per unit (seconds, including load and unload)?"}
+  - {id: tst_stations, ask: CM, question: "How many test stations were in production use this week?"}
+  - {id: tst_station_avail, ask: CM, question: "What share of scheduled time were the test stations available (0-1)?"}
+  - {id: tst_escapes, ask: quality, question: "How many defects were found after test (downstream, at the customer or in the field) that test should have caught?"}
+  - {id: tst_gauge_rr_pct, ask: quality, question: "What is the latest Gauge R&R (% of tolerance) for the test system's critical measurement?"}
+
+  # ---------------- Package ----------------
+  - {id: pkg_planned_min, ask: CM, question: "How many minutes was packaging scheduled to run this week?"}
+  - {id: pkg_downtime_min, ask: CM, question: "How many minutes of unplanned stoppage did packaging have?"}
+  - {id: pkg_ideal_cycle_s, ask: eng, question: "What is the design cycle time of packaging in seconds per unit?"}
+  - {id: pkg_actual_cycle_s, ask: CM, question: "What was the average actual packaging cycle time per unit (seconds)?"}
+  - {id: pkg_units, ask: CM, question: "How many units were packed this week?"}
+  - {id: pkg_units_good, ask: CM, question: "How many packed units passed pack-out verification the first time (right box, contents, label)?"}
+  - {id: pkg_label_scans, ask: CM, question: "How many labels were verified by scan or vision this week?"}
+  - {id: pkg_label_errors, ask: CM, question: "How many labels were wrong (unreadable, wrong serial, wrong data)?"}
+
+  # ---------------- Trace & release ----------------
+  - {id: trc_units_shipped, ask: CM, question: "How many units were shipped or released this week?"}
+  - {id: trc_units_full_genealogy, ask: CM, question: "How many shipped units have complete genealogy (every component lot and serial, operator, station, test result linked to the unit serial)?"}
+  - {id: trc_fields_required, ask: it_ot, question: "How many trace data fields were required for the units shipped (fields per unit x units)?"}
+  - {id: trc_fields_captured, ask: it_ot, question: "How many of those required fields were actually filled in the MES or trace system?"}
+  - {id: trc_retrieval_min, ask: quality, question: "In this week's trace drill, how many minutes did it take to retrieve full genealogy for one random serial number?"}
+  - {id: trc_integrity_violations, ask: quality, question: "How many audit-trail or record-integrity violations (edited without reason, missing signature, back-dated) were found?"}
+  - {id: trc_serial_dupe_events, ask: it_ot, question: "How many duplicate serial numbers were detected this week?"}
+
+  # ---------------- Gated flow ----------------
+  - {id: gate_units_entered, ask: CM, question: "How many units entered the gated flow (passed material release) this week?"}
+  - {id: gate_bypasses, ask: CM, question: "How many units moved to the next stage without a recorded gate pass (deviation, override, manual move)?"}
+  - {id: gate_defects_caught, ask: quality, question: "How many defects were caught at a gate (build, test, pack or trace)?"}
+  - {id: gate_defects_escaped, ask: quality, question: "How many defects got past the gate that should have caught them and were found later?"}
+  - {id: wip_units, ask: CM, question: "How many units were work-in-progress between receive and release at the end of the week?"}
+  - {id: gate_queue_hrs_avg, ask: CM, question: "What was the average time units waited in front of a gate (hours)?"}
+
+  # ---------------- Business ----------------
+  - {id: capex_budget, ask: finance, question: "What is the approved capex budget for the pilot line?"}
+  - {id: capex_actual, ask: finance, question: "What is committed plus spent capex to date?"}
+  - {id: period_material_cost, ask: finance, question: "What was the material cost of this week's output?"}
+  - {id: period_overhead_cost, ask: finance, question: "What overhead was allocated to the line this week (CM fees, facility, depreciation)?",
+     clarify: "Agree what the CM's weekly fee includes, so labor is not counted twice."}
+  - {id: weeks_per_month, ask: finance, question: "How many weeks per month should be used to convert to monthly figures? (default 4.33)"}
+  - {id: milestones_due, ask: pmo, question: "How many program milestones were due up to this week?"}
+  - {id: milestones_on_time, ask: pmo, question: "How many of those milestones were met on time?"}
+
+  # ---------------- Technical delivery ----------------
+  - {id: req_total, ask: eng, question: "How many requirements are in the baselined URS/system specification?"}
+  - {id: req_verified, ask: eng, question: "How many requirements have objective verification evidence that has been signed off?"}
+  - {id: eng_open_critical_defects, ask: eng, question: "How many critical engineering defects (equipment, software, process) are open?"}
+  - {id: it_ot_interfaces_total, ask: it_ot, question: "How many planned IT/OT interfaces are there (ERP-MES, MES-PLC, MES-WMS, test-MES ...)?"}
+  - {id: it_ot_interfaces_live, ask: it_ot, question: "How many of those interfaces are live in production and validated?"}
+  - {id: data_pipeline_uptime, ask: it_ot, question: "What share of the week (0-1) was the production data pipeline up and capturing data?"}
+  - {id: iqoq_protocols_total, ask: quality, question: "How many IQ/OQ protocols are planned?"}
+  - {id: iqoq_protocols_passed, ask: quality, question: "How many IQ/OQ protocols have been executed and passed (deviations closed)?"}
+  - {id: cyber_high_findings_open, ask: it_ot, question: "How many high or critical OT cybersecurity findings are open?"}
+
+  # ---------------- Pilot plan ----------------
+  - {id: pilot_weeks, ask: plan, question: "How many weeks long is the pilot run?"}
+  - {id: line_hrs_per_week, ask: plan, question: "How many line hours per week are planned (shifts x hours)?"}
+  - {id: pilot_demand_units, ask: plan, question: "How many good units must the pilot deliver in total?"}

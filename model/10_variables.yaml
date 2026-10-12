@@ -1,0 +1,153 @@
+# ---------------------------------------------------------------------------
+# VARIABLES: raw measured inputs (one reporting period = one pilot week).
+# Values here are an ILLUSTRATIVE baseline. Override with real data via
+#   --values data/your_period.yaml   (or .csv with columns id,value)
+#
+# Fields:  value, unit, type (float|int|ratio|bool|...), domain, stage,
+#          source (ERP|MES|WMS|QMS|PLC|HRIS|manual|...), description,
+#          dist (optional, for Monte Carlo prediction):
+#             {type: normal, sd: X, min: , max: }
+#             {type: triangular, low: , high: , mode: }   (mode defaults to value)
+#             {type: uniform, low: , high: }
+#          attributes: {any custom key: value}   -> exported to the ontology
+# ---------------------------------------------------------------------------
+
+variables:
+  # ---------------- Supply chain / receive & kit (s0) ----------------
+  - {id: sc_orders_total,        value: 120,   type: int, unit: orders, domain: supply_chain, stage: s0_receive_kit, source: ERP}
+  - {id: sc_orders_otif,         value: 109,   type: int, unit: orders, domain: supply_chain, stage: s0_receive_kit, source: ERP,
+     dist: {type: normal, sd: 4, min: 90, max: 120}}
+  - {id: sc_received_parts,      value: 48000, type: int, unit: parts,  domain: supply_chain, stage: s0_receive_kit, source: WMS}
+  - {id: sc_defective_parts,     value: 38,    type: int, unit: parts,  domain: supply_chain, stage: s0_receive_kit, source: QMS,
+     dist: {type: normal, sd: 12, min: 0}}
+  - {id: inv_locations_counted,  value: 400,   type: int, unit: locations, domain: supply_chain, stage: s0_receive_kit, source: WMS}
+  - {id: inv_locations_accurate, value: 393,   type: int, unit: locations, domain: supply_chain, stage: s0_receive_kit, source: WMS}
+  - {id: kits_issued,            value: 260,   type: int, unit: kits, domain: supply_chain, stage: s0_receive_kit, source: MES}
+  - {id: kits_complete,          value: 252,   type: int, unit: kits, domain: supply_chain, stage: s0_receive_kit, source: MES,
+     dist: {type: normal, sd: 3, max: 260}}
+  - {id: dock_to_stock_hrs,      value: 6.5,   unit: h, domain: supply_chain, stage: s0_receive_kit, source: WMS}
+  - {id: sc_shortage_stop_events,      value: 3,     type: int, unit: events, domain: supply_chain, stage: s0_receive_kit, source: MES}
+  - {id: sc_tasks_total,         value: 40,    type: int, unit: tasks, domain: supply_chain, source: process_inventory,
+     description: "Discrete supply-chain tasks in the process map (receive, put-away, pick, kit, deliver...)"}
+  - {id: sc_tasks_automated,     value: 22,    type: int, unit: tasks, domain: supply_chain, source: process_inventory}
+
+  # ---------------- Automation / labor displacement ----------------
+  - {id: baseline_labor_hrs_sc,  value: 480,  unit: h, domain: automation, source: HRIS, description: Manual labor hours the supply-chain workstream needed before automation}
+  - {id: automated_labor_hrs_sc, value: 260,  unit: h, domain: automation, source: MES}
+  - {id: baseline_labor_hrs_asm, value: 1600, unit: h, domain: automation, source: HRIS}
+  - {id: automated_labor_hrs_asm, value: 900, unit: h, domain: automation, source: MES,
+     dist: {type: triangular, low: 750, high: 1000}}
+  - {id: loaded_labor_rate,      value: 48,   unit: USD/h, domain: business, source: finance}
+  - {id: hrs_per_fte_period,     value: 40,   unit: h, domain: workforce}
+  - {id: human_interventions,    value: 85,   type: int, unit: events, domain: automation, source: PLC,
+     description: Human assists/resets on automated cells, dist: {type: normal, sd: 20, min: 0}}
+  - {id: auto_cycles,            value: 42000, type: int, unit: cycles, domain: automation, source: PLC}
+  - {id: robot_failures,         value: 6,    type: int, unit: events, domain: automation, source: CMMS,
+     dist: {type: normal, sd: 2, min: 1}}
+  - {id: robot_run_hrs,          value: 320,  unit: h, domain: automation, source: PLC}
+  - {id: robot_repair_hrs,       value: 9,    unit: h, domain: automation, source: CMMS,
+     dist: {type: normal, sd: 3, min: 1}}
+
+  # ---------------- Automated build (s1) ----------------
+  - {id: asm_planned_min,     value: 4800, unit: min, domain: assembly_auto, stage: s1_build, source: MES}
+  - {id: asm_downtime_min,    value: 610,  unit: min, domain: assembly_auto, stage: s1_build, source: MES,
+     dist: {type: normal, sd: 150, min: 0}}
+  - {id: asm_ideal_cycle_s,   value: 45,   unit: s, domain: assembly_auto, stage: s1_build, source: engineering}
+  - {id: asm_actual_cycle_s,  value: 52,   unit: s, domain: assembly_auto, stage: s1_build, source: MES,
+     dist: {type: triangular, low: 48, high: 60}}
+  - {id: asm_units_started,   value: 5200, type: int, unit: units, domain: assembly_auto, stage: s1_build, source: MES}
+  - {id: asm_units_good_fp,   value: 4970, type: int, unit: units, domain: assembly_auto, stage: s1_build, source: MES,
+     dist: {type: normal, sd: 40, max: 5200}}
+
+  # ---------------- Manual precision assembly (s1) ----------------
+  - {id: man_units_built,          value: 900,   type: int, unit: units, domain: assembly_manual, stage: s1_build, source: MES}
+  - {id: man_units_good_fp,        value: 873,   type: int, unit: units, domain: assembly_manual, stage: s1_build, source: MES,
+     dist: {type: normal, sd: 6, max: 900}}
+  - {id: man_fastening_ops,        value: 10800, type: int, unit: ops, domain: assembly_manual, stage: s1_build, source: smart_tool}
+  - {id: man_fastening_ok,        value: 10760, type: int, unit: ops, domain: assembly_manual, stage: s1_build, source: smart_tool}
+  - {id: man_position_cpk_measured,         value: 1.41,  unit: Cpk, domain: assembly_manual, stage: s1_build, source: CMM,
+     description: Process capability of the critical positional feature placed by hand, dist: {type: normal, sd: 0.1, min: 0.5}}
+  - {id: man_std_work_audits,      value: 50,  type: int, unit: audits, domain: assembly_manual, source: layered_audit}
+  - {id: man_std_work_compliant,   value: 46,  type: int, unit: audits, domain: assembly_manual, source: layered_audit}
+  - {id: man_operators,            value: 12,  type: int, unit: people, domain: workforce, source: HRIS}
+  - {id: man_operators_certified,  value: 10,  type: int, unit: people, domain: workforce, source: LMS}
+  - {id: man_critical_ops,         value: 60,  type: int, unit: ops, domain: assembly_manual, source: PFMEA}
+  - {id: man_critical_ops_errorproofed, value: 41, type: int, unit: ops, domain: assembly_manual, source: PFMEA}
+  - {id: man_takt_s,               value: 300, unit: s, domain: assembly_manual, stage: s1_build, source: engineering}
+  - {id: man_actual_cycle_s,       value: 318, unit: s, domain: assembly_manual, stage: s1_build, source: MES,
+     dist: {type: normal, sd: 12, min: 250}}
+  - {id: man_ergo_rula_avg,        value: 3.4, unit: RULA, domain: workforce, source: ergonomic_assessment}
+  - {id: man_near_misses,          value: 2,   type: int, unit: events, domain: workforce, source: EHS}
+  - {id: man_hours_worked,         value: 480, unit: h, domain: workforce, source: HRIS}
+  - {id: man_time_to_proficiency_days, value: 14, unit: days, domain: workforce, source: LMS}
+
+  # ---------------- Test (s2) ----------------
+  - {id: tst_units_tested,       value: 5650, type: int, unit: units, domain: test, stage: s2_test, source: test_exec}
+  - {id: tst_units_pass_first,   value: 5420, type: int, unit: units, domain: test, stage: s2_test, source: test_exec,
+     dist: {type: normal, sd: 40, max: 5650}}
+  - {id: tst_false_fails,        value: 41,   type: int, unit: units, domain: test, stage: s2_test, source: test_exec,
+     description: Failed then passed retest with no defect found}
+  - {id: tst_req_total,          value: 220,  type: int, unit: reqs, domain: test, source: PLM}
+  - {id: tst_req_covered,        value: 204,  type: int, unit: reqs, domain: test, source: PLM}
+  - {id: tst_cycle_s,            value: 38,   unit: s, domain: test, stage: s2_test, source: test_exec}
+  - {id: tst_stations,           value: 1,    type: int, unit: stations, domain: test, stage: s2_test}
+  - {id: tst_station_avail,      value: 0.93, type: ratio, domain: test, stage: s2_test, source: MES,
+     dist: {type: normal, sd: 0.02, max: 1}}
+  - {id: tst_escapes,            value: 4,    type: int, unit: units, domain: test, source: QMS,
+     description: Defects found downstream/field that test should have caught}
+  - {id: tst_gauge_rr_pct,       value: 12,   unit: '%', domain: test, source: MSA}
+
+  # ---------------- Package (s3) ----------------
+  - {id: pkg_planned_min,     value: 4800, unit: min, domain: packaging, stage: s3_package, source: MES}
+  - {id: pkg_downtime_min,    value: 300,  unit: min, domain: packaging, stage: s3_package, source: MES,
+     dist: {type: normal, sd: 100, min: 0}}
+  - {id: pkg_ideal_cycle_s,   value: 45,   unit: s, domain: packaging, stage: s3_package, source: engineering}
+  - {id: pkg_actual_cycle_s,  value: 48,   unit: s, domain: packaging, stage: s3_package, source: MES}
+  - {id: pkg_units,           value: 5300, type: int, unit: units, domain: packaging, stage: s3_package, source: MES}
+  - {id: pkg_units_good,      value: 5281, type: int, unit: units, domain: packaging, stage: s3_package, source: MES}
+  - {id: pkg_label_scans,     value: 5300, type: int, unit: scans, domain: packaging, stage: s3_package, source: vision}
+  - {id: pkg_label_errors,    value: 3,    type: int, unit: scans, domain: packaging, stage: s3_package, source: vision}
+
+  # ---------------- Trace & release (s4) ----------------
+  - {id: trc_units_shipped,          value: 5200,   type: int, unit: units, domain: traceability, stage: s4_trace_release, source: ERP}
+  - {id: trc_units_full_genealogy,   value: 5160,   type: int, unit: units, domain: traceability, stage: s4_trace_release, source: MES}
+  - {id: trc_fields_required,        value: 156000, type: int, unit: fields, domain: traceability, source: MES}
+  - {id: trc_fields_captured,        value: 154900, type: int, unit: fields, domain: traceability, source: MES}
+  - {id: trc_retrieval_min,          value: 4.0,    unit: min, domain: traceability, source: trace_drill,
+     description: Time to retrieve full genealogy for one serial number in a trace drill}
+  - {id: trc_integrity_violations,   value: 0, type: int, unit: events, domain: traceability, source: audit_trail}
+  - {id: trc_serial_dupe_events,           value: 1, type: int, unit: events, domain: traceability, source: MES}
+
+  # ---------------- Gated flow ----------------
+  - {id: gate_units_entered,   value: 5200, type: int, unit: units, domain: flow_control, source: MES}
+  - {id: gate_bypasses,        value: 6,    type: int, unit: units, domain: flow_control, source: MES,
+     description: Units that advanced without a recorded gate pass (override/deviation)}
+  - {id: gate_defects_caught,  value: 230,  type: int, unit: defects, domain: flow_control, source: QMS}
+  - {id: gate_defects_escaped, value: 9,    type: int, unit: defects, domain: flow_control, source: QMS}
+  - {id: wip_units,            value: 410,  type: int, unit: units, domain: flow_control, source: MES}
+  - {id: gate_queue_hrs_avg,   value: 1.8,  unit: h, domain: flow_control, source: MES}
+
+  # ---------------- Business ----------------
+  - {id: capex_budget,          value: 4200000, unit: USD, domain: business, source: finance}
+  - {id: capex_actual,          value: 4450000, unit: USD, domain: business, source: finance}
+  - {id: period_material_cost,  value: 260000,  unit: USD, domain: business, source: ERP}
+  - {id: period_overhead_cost,  value: 95000,   unit: USD, domain: business, source: finance}
+  - {id: weeks_per_month,       value: 4.33,    unit: weeks, domain: business}
+  - {id: milestones_due,        value: 14, type: int, unit: milestones, domain: business, source: PMO}
+  - {id: milestones_on_time,    value: 11, type: int, unit: milestones, domain: business, source: PMO}
+
+  # ---------------- Technical delivery ----------------
+  - {id: req_total,                value: 340, type: int, unit: reqs, domain: tech_delivery, source: PLM}
+  - {id: req_verified,             value: 268, type: int, unit: reqs, domain: tech_delivery, source: PLM}
+  - {id: eng_open_critical_defects, value: 5,  type: int, unit: defects, domain: tech_delivery, source: issue_tracker}
+  - {id: it_ot_interfaces_total,   value: 18,  type: int, unit: interfaces, domain: tech_delivery, source: integration_plan}
+  - {id: it_ot_interfaces_live,    value: 14,  type: int, unit: interfaces, domain: tech_delivery, source: integration_plan}
+  - {id: data_pipeline_uptime,     value: 0.987, type: ratio, domain: tech_delivery, source: monitoring}
+  - {id: iqoq_protocols_total,     value: 64,  type: int, unit: protocols, domain: tech_delivery, source: validation}
+  - {id: iqoq_protocols_passed,    value: 51,  type: int, unit: protocols, domain: tech_delivery, source: validation}
+  - {id: cyber_high_findings_open, value: 2,   type: int, unit: findings, domain: tech_delivery, source: security}
+
+  # ---------------- Pilot plan (prediction inputs) ----------------
+  - {id: pilot_weeks,            value: 12,    unit: weeks, domain: business, source: plan}
+  - {id: line_hrs_per_week,      value: 80,    unit: h, domain: business, source: plan}
+  - {id: pilot_demand_units,     value: 45000, type: int, unit: units, domain: business, source: plan}

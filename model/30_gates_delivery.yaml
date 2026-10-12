@@ -1,0 +1,132 @@
+# ---------------------------------------------------------------------------
+# GATES & DELIVERY DEPENDENCIES
+#
+# process_gates : unit-level exit gate for each stage (sequential: a gate is
+#                 BLOCKED if the gate before it has not passed).
+# program_gates : pilot phase gates (IQ -> OQ -> PQ -> ramp). Need their
+#                 deliverables finished AND their KPI criteria met.
+# deliverables  : business / technical / operational work packages with
+#                 dependencies -> critical path & projected gate dates.
+#
+# Criterion forms:
+#   {kpi: X, require: green|amber, hard: true}      status based
+#   {kpi: X, op: '>=', value: 1.33, hard: true}     explicit value test
+#   {gate: <gate id>, hard: true}                   another gate must pass
+# hard: true  -> must pass for the gate to pass. hard: false -> readiness only.
+# ---------------------------------------------------------------------------
+
+process_gates:
+  - id: g0_material_release
+    stage: s0_receive_kit
+    name: Material release to line
+    criteria:
+      - {kpi: sc_kit_completeness, require: amber, hard: true}
+      - {kpi: sc_supplier_ppm, require: amber, hard: true}
+      - {kpi: sc_inventory_accuracy, require: amber, hard: false}
+      - {kpi: sc_shortage_stops, require: green, hard: false}
+
+  - id: g1_build_complete
+    stage: s1_build
+    name: Build complete & verified
+    criteria:
+      - {kpi: asm_quality, require: amber, hard: true}
+      - {kpi: man_fpy, require: amber, hard: true}
+      - {kpi: man_fastening_rft, require: amber, hard: true}
+      - {kpi: man_position_cpk, op: '>=', value: 1.33, hard: true}
+      - {kpi: asm_oee, require: green, hard: false}
+      - {kpi: man_takt_adherence, require: amber, hard: false}
+
+  - id: g2_test_pass
+    stage: s2_test
+    name: Functional test pass
+    criteria:
+      - {kpi: tst_fpy, require: amber, hard: true}
+      - {kpi: tst_req_coverage, require: amber, hard: true}
+      - {kpi: tst_gauge_rr, require: amber, hard: true}
+      - {kpi: tst_false_fail_rate, require: green, hard: false}
+
+  - id: g3_pack_verified
+    stage: s3_package
+    name: Pack & label verified
+    criteria:
+      - {kpi: pkg_label_accuracy, require: amber, hard: true}
+      - {kpi: pkg_quality, require: amber, hard: true}
+      - {kpi: pkg_oee, require: green, hard: false}
+
+  - id: g4_trace_release
+    stage: s4_trace_release
+    name: Genealogy complete & released
+    criteria:
+      - {kpi: trc_genealogy_coverage, require: amber, hard: true}
+      - {kpi: trc_data_completeness, require: amber, hard: true}
+      - {kpi: trc_integrity, require: green, hard: true}
+      - {kpi: gate_compliance, require: amber, hard: true}
+      - {kpi: trc_serial_dupes, require: green, hard: false}
+
+program_gates:
+  - id: pg0_design_freeze
+    order: 0
+    planned_week: 0
+    name: Design freeze & funding
+    deliverables: [d_biz_business_case, d_biz_capex_approval, d_tech_req_baseline, d_tech_line_design]
+
+  - id: pg1_install_iq
+    order: 1
+    planned_week: 2
+    name: Line installed (IQ)
+    deliverables: [d_tech_equipment_install, d_biz_supplier_agreements, d_tech_mes_core]
+
+  - id: pg2_oq
+    order: 2
+    planned_week: 6
+    name: Operational qualification (OQ)
+    deliverables: [d_tech_it_ot_integration, d_tech_trace_data_model, d_tech_test_station_validation, d_ops_operator_training]
+    criteria:
+      - {kpi: tech_iqoq_pass_rate, require: amber, hard: true}
+      - {kpi: tech_req_verified, require: amber, hard: true}
+      - {kpi: tech_open_critical_defects, require: amber, hard: true}
+      - {kpi: tech_cyber_high_open, require: amber, hard: true}
+      - {kpi: tech_it_ot_integration, require: green, hard: false}
+
+  - id: pg3_pq_pilot
+    order: 3
+    planned_week: 10
+    name: Performance qualification / pilot run (PQ)
+    deliverables: [d_tech_pq_protocols, d_biz_pilot_demand_plan]
+    criteria:
+      - {gate: g4_trace_release, hard: true}
+      - {kpi: line_rty, require: amber, hard: true}
+      - {kpi: asm_oee, require: amber, hard: true}
+      - {kpi: gate_containment, require: amber, hard: true}
+      - {kpi: auto_intervention_rate, require: amber, hard: false}
+
+  - id: pg4_ramp_ready
+    order: 4
+    planned_week: 16
+    name: Ramp readiness
+    deliverables: [d_biz_ramp_case, d_tech_sustainment_handover]
+    criteria:
+      - {kpi: pred_demand_coverage, require: green, hard: true}
+      - {kpi: biz_payback_months, require: green, hard: true}
+      - {kpi: auto_labor_displacement, require: amber, hard: true}
+      - {kpi: biz_unit_cost, require: green, hard: false}
+      - {kpi: man_certification, require: green, hard: false}
+
+deliverables:
+  # type: business | technical | operational      duration in weeks
+  - {id: d_biz_business_case,      type: business,    name: Pilot business case,           duration_wks: 4,  pct_complete: 1.0}
+  - {id: d_biz_capex_approval,     type: business,    name: Capex approval,                duration_wks: 3,  pct_complete: 1.0, depends_on: [d_biz_business_case]}
+  - {id: d_tech_req_baseline,      type: technical,   name: Requirements baseline (URS),   duration_wks: 6,  pct_complete: 1.0}
+  - {id: d_tech_line_design,       type: technical,   name: Line & cell design,            duration_wks: 8,  pct_complete: 1.0, depends_on: [d_tech_req_baseline]}
+  - {id: d_biz_supplier_agreements, type: business,   name: Supplier agreements & PPAP,    duration_wks: 6,  pct_complete: 0.9, depends_on: [d_biz_capex_approval]}
+  - {id: d_tech_equipment_install, type: technical,   name: Equipment install & IQ,        duration_wks: 10, pct_complete: 1.0, depends_on: [d_tech_line_design, d_biz_capex_approval]}
+  - {id: d_tech_mes_core,          type: technical,   name: MES core configuration,        duration_wks: 10, pct_complete: 0.85, depends_on: [d_tech_req_baseline]}
+  - {id: d_tech_it_ot_integration, type: technical,   name: IT/OT integration (ERP-MES-WMS-PLC), duration_wks: 8, pct_complete: 0.75, depends_on: [d_tech_mes_core, d_tech_equipment_install]}
+  - {id: d_tech_trace_data_model,  type: technical,   name: Traceability data model & serialization, duration_wks: 6, pct_complete: 0.8, depends_on: [d_tech_mes_core]}
+  - {id: d_tech_test_station_validation, type: technical, name: Test station validation (MSA), duration_wks: 6, pct_complete: 0.7, depends_on: [d_tech_equipment_install]}
+  - {id: d_ops_operator_training,  type: operational, name: Operator training & certification, duration_wks: 6, pct_complete: 0.8, depends_on: [d_tech_line_design]}
+  - {id: d_tech_pq_protocols,      type: technical,   name: PQ protocols executed,         duration_wks: 4,  pct_complete: 0.3,
+     depends_on: [d_tech_test_station_validation, d_tech_it_ot_integration, d_tech_trace_data_model]}
+  - {id: d_biz_pilot_demand_plan,  type: business,    name: Pilot demand & S&OP plan,      duration_wks: 3,  pct_complete: 0.6, depends_on: [d_biz_supplier_agreements]}
+  - {id: d_biz_ramp_case,          type: business,    name: Ramp investment case,          duration_wks: 4,  pct_complete: 0.0, depends_on: [d_biz_pilot_demand_plan, d_tech_pq_protocols]}
+  - {id: d_tech_sustainment_handover, type: technical, name: Sustainment & maintenance handover, duration_wks: 4, pct_complete: 0.0, depends_on: [d_tech_pq_protocols]}
